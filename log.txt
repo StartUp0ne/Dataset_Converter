@@ -1,0 +1,6 @@
+[2023.02.02 20:07:26] I Dataset Converter started with options: {'source': 'source_bert.txt', 'result': 'result_spacy.jsonl', 'spacy_to_bert': False, 'bert_to_spacy': True, 'dry': False, 'log': 'log.txt'}
+[2023.02.02 20:07:26] I Start converting dataset from BERT-NER to spacy-NER format...
+[2023.02.02 20:07:26] I Process finished. Result file saved to result_spacy.jsonl
+[2023.02.02 20:08:12] I Dataset Converter started with options: {'source': 'source_spacy.jsonl', 'result': 'result_bert.txt', 'spacy_to_bert': True, 'bert_to_spacy': False, 'dry': False, 'log': 'log.txt'}
+[2023.02.02 20:08:12] I Start converting dataset from spacy-NER to BERT-NER format...
+[2023.02.02 20:08:12] I Process finished. Result file saved to result_bert.txt

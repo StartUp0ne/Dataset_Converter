@@ -9,7 +9,7 @@ import spacy
 NLP = spacy.load("en_core_web_sm")
 
 
-def split_text_for_bert(text: str):
+def split_spacy_text(text: str):
     """
     Separates punctuation marks from words and divides text into single words and punctuation marks \n
     :param text: one line of type string
@@ -25,7 +25,7 @@ def split_text_for_bert(text: str):
     return text.split()
 
 
-def convert_spacy_format(spacy_format: dict):
+def convert_spacy_to_bert(spacy_format: dict):
     """
     Converts a dictionary in spacy format to a string in bert format \n
     :param spacy_format: dictionary in spacy format
@@ -33,14 +33,14 @@ def convert_spacy_format(spacy_format: dict):
     """
     text = spacy_format['text']
     labels = [[text[start-1:end].rstrip('.,!?\\-/()[]{};:'), label] for start, end, label in spacy_format['label']]
-    entities = [[split_text_for_bert(entity_body), label] for entity_body, label in labels]
+    entities = [[split_spacy_text(entity_body), label] for entity_body, label in labels]
     bert_format = ''
 
     for label in labels:
         entity_text = label[0]
         text = text.replace(entity_text, ' label_token ', 1)
 
-    words = split_text_for_bert(text)
+    words = split_spacy_text(text)
     for word in words:
         if word == 'label_token':
             entity_words = entities[0][0]
@@ -56,7 +56,7 @@ def convert_spacy_format(spacy_format: dict):
     return bert_format
 
 
-def read_bert_file(source_file: str):
+def read_bert_file_split_into_texts(source_file: str):
     """
     Reads txt files and converts each text of bert format into one separate line \n
     :param source_file: path to the file with bert dataset
@@ -76,6 +76,24 @@ def read_bert_file(source_file: str):
     return bert_format
 
 
+def read_bert_file_one_line(source_file: str):
+    """
+    Reads txt files and join text of bert format into one line \n
+    :param source_file: path to the file with bert dataset
+    :return: list of bert format strings
+    """
+    bert_format = []
+    with open(source_file, "r") as file:
+        text = ''
+        line = file.readline()
+        while line:
+            text += line
+            line = file.readline()
+    text = text.replace('\n', ' ')
+    bert_format.append(text)
+    return bert_format
+
+
 def formatting_entity(entity, text, label):
     """
     Forms entities as in spacy format \n
@@ -87,7 +105,7 @@ def formatting_entity(entity, text, label):
     return [[i.start(), i.start() + len(entity), label] for i in re.finditer(entity, text)]
 
 
-def join_text_for_spacy(words: list):
+def join_bert_text(words: list):
     """
     joins words and other symbols into sentence \n
     :param words: list of single words and other symbols
@@ -106,7 +124,7 @@ def join_text_for_spacy(words: list):
     return text
 
 
-def convert_bert_format(bert_format: str, data_id: int):
+def convert_bert_to_spacy(bert_format: str, data_id: int):
     """
     converts text in best format to dictionary in spacy format \n
     :param bert_format: string in bert format
@@ -117,7 +135,7 @@ def convert_bert_format(bert_format: str, data_id: int):
     words = [bert_format[i] for i in range(0, len(bert_format), 2)]
     labels = [bert_format[i] for i in range(1, len(bert_format), 2)]
 
-    text = join_text_for_spacy(words)
+    text = join_bert_text(words)
 
     entity_text = ''
     entities = []
@@ -158,11 +176,11 @@ def parse_spacy_to_bert_format(source_file: str, result_file: str):
     :return:
     """
     logging.info(f"Start converting dataset from spacy-NER to BERT-NER format...")
-    dataset = srsly.read_jsonl(source_file)
+    source_dataset = srsly.read_jsonl(source_file)
     try:
         with open(result_file, "w") as file_stream:
-            while dataset:
-                print(convert_spacy_format(next(dataset)), file=file_stream,)
+            while source_dataset:
+                print(convert_spacy_to_bert(next(source_dataset)), file=file_stream)
     except StopIteration:
         logging.info(f"Process finished. Result file saved to {result_file}")
 
@@ -175,10 +193,10 @@ def parse_bert_to_spacy_format(source_file: str, result_file: str):
     :return:
     """
     logging.info(f"Start converting dataset from BERT-NER to spacy-NER format...")
-    source_dataset = read_bert_file(source_file)
+    source_dataset = read_bert_file_one_line(source_file)
     result_dataset = []
     for data_id in range(len(source_dataset)):
-        result_dataset.append(convert_bert_format(source_dataset[data_id], data_id))
+        result_dataset.append(convert_bert_to_spacy(source_dataset[data_id], data_id))
     srsly.write_jsonl(result_file, result_dataset)
     logging.info(f"Process finished. Result file saved to {result_file}")
 

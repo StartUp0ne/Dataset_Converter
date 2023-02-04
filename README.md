@@ -32,9 +32,26 @@
   - индекс символа-начала сущности
   - индекс символа-конца сущности
   - имя сущности
- 
+
 > **Датасет BERT-NER** хранится в формате txt, где каждая строка соответствует каждому токену в
 тексте, его IOB-тэгу и имени сущности к которой он принадлежит (при наличии):
+
+```
+The B-NAME_OF_REPORT
+main I-NAME_OF_REPORT
+villain I-NAME_OF_REPORT
+of I-NAME_OF_REPORT
+all I-NAME_OF_REPORT
+groups I-NAME_OF_REPORT
+2.12.2021 B-DATE_OF_PUBLICATION
+by O
+Kunar B-AUTHORS
+Mayan I-AUTHORS
+, O
+Dmitriy B-AUTHORS
+Kapor I-AUTHORS
+. O
+```
 
 IOB-теги – формат для обозначения семантических фрагментов текста. Каждому токену
 соответвует iob-тег, который может означать следующее:

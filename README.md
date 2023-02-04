@@ -65,3 +65,31 @@ IOB-теги – формат для обозначения семантичес
 
 **3) Написаны unit-тесты на реализованный функционал.**
 Тесты размесщены в отдельном скрипте tests.py. Для реализации использовалась библиотека unittest.
+
+## Примеры запуска ##
+
+1. Пример запуска алгоримта конвертации spacy в BERT
+
+Входные данные:
+```
+dataset_parser.py -s source_spacy.jsonl -r result_bert.txt --spacy_to_bert True -l log.txt
+```
+log.txt:
+```
+[2023.02.02 20:08:12] I Dataset Converter started with options: {'source': 'source_spacy.jsonl', 'result': 'result_bert.txt', 'spacy_to_bert': True, 'bert_to_spacy': False, 'dry': False, 'log': 'log.txt'}
+[2023.02.02 20:08:12] I Start converting dataset from spacy-NER to BERT-NER format...
+[2023.02.02 20:08:12] I Process finished. Result file saved to result_bert.txt
+```
+В репозитории представлен исходный датасет в файле *source_spacy.jsonl*, а результат в *result_bert.txt*
+
+1. Пример запуска алгоримта конвертации BERT в spacy
+```
+C:\Users\tropi\OneDrive\Desktop\RoadmapPython_5_Files\dataset_parser.py -s source_bert.txt -r result_spacy.jsonl --bert_to_spacy True -l log.txt
+```
+log.txt:
+```
+[2023.02.02 20:07:26] I Dataset Converter started with options: {'source': 'source_bert.txt', 'result': 'result_spacy.jsonl', 'spacy_to_bert': False, 'bert_to_spacy': True, 'dry': False, 'log': 'log.txt'}
+[2023.02.02 20:07:26] I Start converting dataset from BERT-NER to spacy-NER format...
+[2023.02.02 20:07:26] I Process finished. Result file saved to result_spacy.jsonl
+```
+В репозитории представлен исходный датасет в файле *source_bert.txt*, а результат в *result_spacy.jsonl*

@@ -84,7 +84,7 @@ log.txt:
 
 1. Пример запуска алгоримта конвертации BERT в spacy
 ```
-C:\Users\tropi\OneDrive\Desktop\RoadmapPython_5_Files\dataset_parser.py -s source_bert.txt -r result_spacy.jsonl --bert_to_spacy True -l log.txt
+dataset_parser.py -s source_bert.txt -r result_spacy.jsonl --bert_to_spacy True -l log.txt
 ```
 log.txt:
 ```

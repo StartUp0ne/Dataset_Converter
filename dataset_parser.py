@@ -1,28 +1,30 @@
 import argparse
 import logging
-import re
+import os
 import sys
+import re
 
 import srsly
 import spacy
+from spacy.training import offsets_to_biluo_tags
+from spacy.training.iob_utils import spans_from_biluo_tags
+from spacy.tokens import Doc
+
+import warnings
+warnings.filterwarnings("error")
 
 NLP = spacy.load("en_core_web_sm")
 
 
-def split_spacy_text(text: str):
+def normalize_label(entity_text: str, text: str, label: str):
     """
-    Separates punctuation marks from words and divides text into single words and punctuation marks \n
-    :param text: one line of type string
-    :return: list of single words and other symbols
+    Normalizes labels in spacy format \n
+    :param entity_text: the text containing the entity
+    :param text: text in which entities are searched
+    :param label: entity label
+    :return: list of lists of the following format: [start index entity, end index entity, entity label]
     """
-    idx = 0
-    text = f' {text} '
-    while idx < len(text):
-        if text[idx] in ".,!?\\-/()[]{};:" and text[idx + 1] == ' ':
-            text = text[:idx] + ' ' + text[idx:]
-            idx += 1
-        idx += 1
-    return text.split()
+    return [[i.start(), i.start() + len(entity_text), label] for i in re.finditer(entity_text, text, 1)]
 
 
 def convert_spacy_to_bert(spacy_format: dict):
@@ -32,31 +34,37 @@ def convert_spacy_to_bert(spacy_format: dict):
     :return: string in bert format
     """
     text = spacy_format['text']
-    labels = [[text[start-1:end].rstrip('.,!?\\-/()[]{};:'), label] for start, end, label in spacy_format['label']]
-    entities = [[split_spacy_text(entity_body), label] for entity_body, label in labels]
+    doc = NLP.make_doc(text)
+
+    try:
+        tags = offsets_to_biluo_tags(doc, spacy_format['label'])
+    except Warning:
+        labeled_entities = [[text[start - 1:end].strip(' .,!?\\-/()[]{};:'), label]
+                            for start, end, label in spacy_format['label']]
+        labels = []
+        for entity in labeled_entities:
+            label = normalize_label(entity[0], text, entity[1])
+            if label[0] not in labels:
+                labels += label
+        labels = sorted(labels, key=lambda elem: elem[0])
+        tags = offsets_to_biluo_tags(doc, labels)
+
+    entities = spans_from_biluo_tags(doc, tags)
+    doc.ents = entities
+
     bert_format = ''
-
-    for label in labels:
-        entity_text = label[0]
-        text = text.replace(entity_text, ' label_token ', 1)
-
-    words = split_spacy_text(text)
-    for word in words:
-        if word == 'label_token':
-            entity_words = entities[0][0]
-            entity_label = entities[0][1]
-            bert_format += f'{entity_words[0]} B-{entity_label}\n'
-            del entity_words[0]
-            for entity in entity_words:
-                bert_format += f'{entity} I-{entity_label}\n'
-            del entities[0]
+    for token in doc:
+        if token.text == ' ':
+            continue
+        if token.ent_iob_ == 'O':
+            bert_format += f'{token.text} {token.ent_iob_}\n'
         else:
-            bert_format += f'{word} O\n'
+            bert_format += f'{token.text} {token.ent_iob_}-{token.ent_type_}\n'
 
     return bert_format
 
 
-def read_bert_file_split_into_texts(source_file: str):
+def read_bert_split_into_texts(source_file: str):
     """
     Reads txt files and converts each text of bert format into one separate line \n
     :param source_file: path to the file with bert dataset
@@ -70,13 +78,14 @@ def read_bert_file_split_into_texts(source_file: str):
             text += f'{line} '
             line = file.readline()
             if line == '\n':
+                text = text.replace('\n', '')
                 bert_format.append(text)
                 text = ''
 
     return bert_format
 
 
-def read_bert_file_one_line(source_file: str):
+def read_bert_in_one_line(source_file: str):
     """
     Reads txt files and join text of bert format into one line \n
     :param source_file: path to the file with bert dataset
@@ -94,36 +103,6 @@ def read_bert_file_one_line(source_file: str):
     return bert_format
 
 
-def formatting_entity(entity, text, label):
-    """
-    Forms entities as in spacy format \n
-    :param entity: entity text
-    :param text: text in which entities are searched
-    :param label: entity label
-    :return: list of lists of the following format: [start index entity, end index entity, entity label]
-    """
-    return [[i.start(), i.start() + len(entity), label] for i in re.finditer(entity, text)]
-
-
-def join_bert_text(words: list):
-    """
-    joins words and other symbols into sentence \n
-    :param words: list of single words and other symbols
-    :return: one line of type string
-    """
-    text = ''
-    for word in words:
-        if word in r".,!?\/;:":
-            text += word
-        elif word in r"()[]{}":
-            text += f'{word} '
-        else:
-            text += f' {word}'
-    text += ' '
-    text = text.replace('  ', ' ')
-    return text
-
-
 def convert_bert_to_spacy(bert_format: str, data_id: int):
     """
     converts text in best format to dictionary in spacy format \n
@@ -131,41 +110,15 @@ def convert_bert_to_spacy(bert_format: str, data_id: int):
     :param data_id: number of current bert text
     :return: dictionary of spacy format
     """
+
     bert_format = bert_format.split()
     words = [bert_format[i] for i in range(0, len(bert_format), 2)]
-    labels = [bert_format[i] for i in range(1, len(bert_format), 2)]
+    iob_tokens = [bert_format[i] for i in range(1, len(bert_format), 2)]
 
-    text = join_bert_text(words)
+    doc = Doc(NLP.vocab, words=words, ents=iob_tokens)
 
-    entity_text = ''
-    entities = []
-
-    for idx in range(len(labels)):
-        temp_entities = []
-        if labels[idx][0] == 'B' and entity_text == '':
-            entity_text = words[idx]
-
-        elif labels[idx][0] == 'B':
-            temp_entities = formatting_entity(entity_text, text, labels[idx - 1][2:])
-            entity_text = words[idx]
-
-        elif labels[idx][0] == 'I':
-            entity_text += f' {words[idx]}'
-
-        elif entity_text != '':
-            temp_entities = formatting_entity(entity_text, text, labels[idx - 1][2:])
-            entity_text = ''
-
-        if temp_entities and temp_entities[0] not in entities:
-            entities += temp_entities
-
-    if entity_text != '':
-        temp_entities = formatting_entity(entity_text, text, labels[len(labels) - 1][2:])
-        if temp_entities[0] not in entities:
-            entities += temp_entities
-
-    entities = sorted(entities, key=lambda elem: elem[0])
-    return {"id": data_id, "text": text, "label": entities}
+    labels = [[ent.start_char, ent.end_char, ent.label_] for ent in doc.ents]
+    return {'id': data_id, 'text': doc.text, 'label': labels}
 
 
 def parse_spacy_to_bert_format(source_file: str, result_file: str):
@@ -176,13 +129,11 @@ def parse_spacy_to_bert_format(source_file: str, result_file: str):
     :return:
     """
     logging.info(f"Start converting dataset from spacy-NER to BERT-NER format...")
-    source_dataset = srsly.read_jsonl(source_file)
-    try:
-        with open(result_file, "w") as file_stream:
-            while source_dataset:
-                print(convert_spacy_to_bert(next(source_dataset)), file=file_stream)
-    except StopIteration:
-        logging.info(f"Process finished. Result file saved to {result_file}")
+    source_dataset = srsly.read_jsonl(os.getcwd() + '/' + source_file)
+    with open(os.getcwd() + '/' + result_file, "w") as file_stream:
+        for data in source_dataset:
+            print(convert_spacy_to_bert(data), file=file_stream)
+    logging.info(f"Process finished. Result file saved to {result_file}")
 
 
 def parse_bert_to_spacy_format(source_file: str, result_file: str):
@@ -193,11 +144,11 @@ def parse_bert_to_spacy_format(source_file: str, result_file: str):
     :return:
     """
     logging.info(f"Start converting dataset from BERT-NER to spacy-NER format...")
-    source_dataset = read_bert_file_one_line(source_file)
+    source_dataset = read_bert_in_one_line(source_file)
     result_dataset = []
     for data_id in range(len(source_dataset)):
         result_dataset.append(convert_bert_to_spacy(source_dataset[data_id], data_id))
-    srsly.write_jsonl(result_file, result_dataset)
+    srsly.write_jsonl(os.getcwd() + '/' + result_file, result_dataset)
     logging.info(f"Process finished. Result file saved to {result_file}")
 
 

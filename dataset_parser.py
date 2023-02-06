@@ -132,7 +132,7 @@ def parse_spacy_to_bert_format(source_file: str, result_file: str):
     source_dataset = srsly.read_jsonl(os.getcwd() + '/' + source_file)
     with open(os.getcwd() + '/' + result_file, "w") as file_stream:
         for data in source_dataset:
-            print(convert_spacy_to_bert(data), file=file_stream)
+            file_stream.write(f'{convert_spacy_to_bert(data)}\n')
     logging.info(f"Process finished. Result file saved to {result_file}")
 
 

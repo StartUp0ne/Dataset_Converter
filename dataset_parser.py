@@ -45,7 +45,7 @@ def convert_spacy_to_bert(spacy_format: dict):
         for entity in labeled_entities:
             label = normalize_label(entity[0], text, entity[1])
             if label[0] not in labels:
-                labels += label
+                labels.append(label)
         labels = sorted(labels, key=lambda elem: elem[0])
         tags = offsets_to_biluo_tags(doc, labels)
 
@@ -144,7 +144,7 @@ def parse_bert_to_spacy_format(source_file: str, result_file: str):
     :return:
     """
     logging.info(f"Start converting dataset from BERT-NER to spacy-NER format...")
-    source_dataset = read_bert_in_one_line(source_file)
+    source_dataset = read_bert_split_into_texts(source_file)
     result_dataset = []
     for data_id in range(len(source_dataset)):
         result_dataset.append(convert_bert_to_spacy(source_dataset[data_id], data_id))
